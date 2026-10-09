@@ -1,0 +1,4 @@
+order_id,product,quantity,unit_price
+O1001,Keyboard,1,120.0
+O1002,Mouse,2,40.0
+O1003,Monitor,1,200.0
