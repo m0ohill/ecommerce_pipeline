@@ -1,15 +1,26 @@
 import csv
 import hashlib
 import logging
+import argparse
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
+
 PROCESSED_DIR = PROJECT_DIR / "data" / "processed"
 INCREMENTAL_DIR = PROJECT_DIR / "data" / "incremental"
+
+DEMO_SOURCE_DIR = PROJECT_DIR / "data" / "incremental_demo" / "source"
+DEMO_OUTPUT_DIR = PROJECT_DIR / "data" / "incremental_demo" / "output"
 
 INPUT_FILES = [
     "2009-2010_transformed.csv",
     "2010-2011_transformed.csv",
+]
+
+DEMO_INPUT_FILES = [
+    "day_1.csv",
+    "day_3.csv",
+    "day_7.csv",
 ]
 
 OUTPUT_FILE = INCREMENTAL_DIR / "retail_transactions.csv"
@@ -24,10 +35,9 @@ logger = logging.getLogger(__name__)
 
 
 def create_record_key(source_file, row_number, row):
-    """Identify a source record without deduplicating identical transactions."""
+    """Identify the same record consistently across cumulative snapshots."""
     record = "|".join(
         [
-            source_file,
             str(row_number),
             *(row.get(column, "") or "" for column in sorted(row)),
         ]
@@ -36,11 +46,28 @@ def create_record_key(source_file, row_number, row):
     return hashlib.sha256(record.encode("utf-8")).hexdigest()
 
 
-def run_incremental_load():
-    INCREMENTAL_DIR.mkdir(parents=True, exist_ok=True)
+def run_incremental_load(
+    input_dir=PROCESSED_DIR,
+    input_files=INPUT_FILES,
+    output_file=OUTPUT_FILE,
+    state_file=STATE_FILE,
+    reset=False,
+):
+    input_dir = Path(input_dir)
+    output_file = Path(output_file)
+    state_file = Path(state_file)
+
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # Reset is intended for a controlled demo or deliberate full reload.
+    if reset:
+        for path in (output_file, state_file):
+            if path.exists():
+                path.unlink()
 
     # Refuse to start if only one of the output/state files exists.
-    if OUTPUT_FILE.exists() != STATE_FILE.exists():
+    if output_file.exists() != state_file.exists():
         raise RuntimeError(
             "Output and state files are inconsistent. "
             "Back them up and reset both before rerunning."
@@ -48,52 +75,52 @@ def run_incremental_load():
 
     seen_keys = set()
 
-    if STATE_FILE.exists():
-        with STATE_FILE.open(
+    if state_file.exists():
+        with state_file.open(
             "r", newline="", encoding="utf-8"
-        ) as state_file:
+        ) as state:
             seen_keys = {
                 row["record_key"]
-                for row in csv.DictReader(state_file)
+                for row in csv.DictReader(state)
             }
 
     initial_count = len(seen_keys)
-    output_exists = OUTPUT_FILE.exists()
-    state_exists = STATE_FILE.exists()
+    output_exists = output_file.exists()
+    state_exists = state_file.exists()
 
     new_count = 0
     skipped_count = 0
 
     with (
-        OUTPUT_FILE.open("a", newline="", encoding="utf-8") as output_file,
-        STATE_FILE.open("a", newline="", encoding="utf-8") as state_file,
+        output_file.open("a", newline="", encoding="utf-8") as output,
+        state_file.open("a", newline="", encoding="utf-8") as state,
     ):
         output_writer = None
         state_writer = csv.DictWriter(
-            state_file,
+            state,
             fieldnames=["record_key"],
         )
 
         if not state_exists:
             state_writer.writeheader()
 
-        for filename in INPUT_FILES:
-            input_path = PROCESSED_DIR / filename
+        for filename in input_files:
+            input_path = input_dir / filename
 
             if not input_path.exists():
                 raise FileNotFoundError(input_path)
 
             with input_path.open(
                 "r", newline="", encoding="utf-8-sig"
-            ) as input_file:
-                reader = csv.DictReader(input_file)
+            ) as source:
+                reader = csv.DictReader(source)
 
                 if not reader.fieldnames:
                     continue
 
                 if output_writer is None:
                     output_writer = csv.DictWriter(
-                        output_file,
+                        output,
                         fieldnames=reader.fieldnames,
                     )
 
@@ -125,9 +152,42 @@ def run_incremental_load():
     logger.info("New records loaded: %s", new_count)
     logger.info("Records skipped on rerun: %s", skipped_count)
     logger.info("Total processed keys: %s", len(seen_keys))
-    logger.info("Output file: %s", OUTPUT_FILE)
-    logger.info("State file: %s", STATE_FILE)
+    logger.info("Output file: %s", output_file)
+    logger.info("State file: %s", state_file)
+
+
+def run_demo():
+    """Run the same incremental loader against the three cumulative snapshots."""
+    for path in (DEMO_OUTPUT_DIR / "retail_transactions.csv",
+                 DEMO_OUTPUT_DIR / "processed_keys.csv"):
+        if path.exists():
+            path.unlink()
+
+    for label, filename in [
+        ("Day 1", "day_1.csv"),
+        ("Day 3", "day_3.csv"),
+        ("Day 7", "day_7.csv"),
+    ]:
+        logger.info("===== %s =====", label)
+
+        run_incremental_load(
+            input_dir=DEMO_SOURCE_DIR,
+            input_files=[filename],
+            output_file=DEMO_OUTPUT_DIR / "retail_transactions.csv",
+            state_file=DEMO_OUTPUT_DIR / "processed_keys.csv",
+        )
 
 
 if __name__ == "__main__":
-    run_incremental_load()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run the incremental-loading demonstration on small snapshots.",
+    )
+    args = parser.parse_args()
+
+    if args.demo:
+        run_demo()
+    else:
+        run_incremental_load()
