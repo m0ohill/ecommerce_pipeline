@@ -1,0 +1,3 @@
+batch,order_id,customer_id,order_date,amount,status,errors
+batch_test,O9001,C001,2026-10-10,-50.00,completed,Amount cannot be negative
+batch_test,O9003,,2026-10-10,30.00,completed,Missing customer_id
