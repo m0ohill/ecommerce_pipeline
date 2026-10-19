@@ -1,0 +1,43 @@
+[2026-10-19T08:10:58.341+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-10-19T08:10:58.352+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: retail_etl_pipeline.transform_data manual__2026-10-19T08:10:45+00:00 [queued]>
+[2026-10-19T08:10:58.360+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: retail_etl_pipeline.transform_data manual__2026-10-19T08:10:45+00:00 [queued]>
+[2026-10-19T08:10:58.360+0000] {taskinstance.py:2867} INFO - Starting attempt 1 of 2
+[2026-10-19T08:10:58.369+0000] {taskinstance.py:2890} INFO - Executing <Task(BashOperator): transform_data> on 2026-10-19 08:10:45+00:00
+[2026-10-19T08:10:58.374+0000] {standard_task_runner.py:72} INFO - Started process 213 to run task
+[2026-10-19T08:10:58.378+0000] {standard_task_runner.py:104} INFO - Running: ['airflow', 'tasks', 'run', 'retail_etl_pipeline', 'transform_data', 'manual__2026-10-19T08:10:45+00:00', '--job-id', '4', '--raw', '--subdir', 'DAGS_FOLDER/retail_pipeline_dag.py', '--cfg-path', '/tmp/tmphhk1ai8i']
+[2026-10-19T08:10:58.380+0000] {standard_task_runner.py:105} INFO - Job 4: Subtask transform_data
+[2026-10-19T08:10:58.411+0000] {task_command.py:467} INFO - Running <TaskInstance: retail_etl_pipeline.transform_data manual__2026-10-19T08:10:45+00:00 [running]> on host 68ca746c4d97
+[2026-10-19T08:10:58.451+0000] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='data_engineering' AIRFLOW_CTX_DAG_ID='retail_etl_pipeline' AIRFLOW_CTX_TASK_ID='transform_data' AIRFLOW_CTX_EXECUTION_DATE='2026-10-19T08:10:45+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-10-19T08:10:45+00:00'
+[2026-10-19T08:10:58.451+0000] {taskinstance.py:732} INFO - ::endgroup::
+[2026-10-19T08:10:58.464+0000] {subprocess.py:78} INFO - Tmp dir root location: /tmp
+[2026-10-19T08:10:58.466+0000] {subprocess.py:88} INFO - Running command: ['/usr/bin/bash', '-c', 'cd /opt/airflow/project && python src/transform.py']
+[2026-10-19T08:10:58.473+0000] {subprocess.py:99} INFO - Output:
+[2026-10-19T08:11:09.560+0000] {subprocess.py:106} INFO - INFO: Results for 2009-2010.csv
+[2026-10-19T08:11:09.608+0000] {subprocess.py:106} INFO - INFO: Total records: 525461
+[2026-10-19T08:11:09.625+0000] {subprocess.py:106} INFO - INFO: Valid records: 525461
+[2026-10-19T08:11:09.628+0000] {subprocess.py:106} INFO - INFO: Quarantined records: 0
+[2026-10-19T08:11:09.633+0000] {subprocess.py:106} INFO - INFO: Validation pass rate: 100.00%
+[2026-10-19T08:11:09.639+0000] {subprocess.py:106} INFO - INFO: Quarantine rate: 0.00%
+[2026-10-19T08:11:09.649+0000] {subprocess.py:106} INFO - INFO: Processed data: /opt/airflow/project/data/processed/2009-2010_transformed.csv
+[2026-10-19T08:11:09.653+0000] {subprocess.py:106} INFO - INFO: Quarantine data: /opt/airflow/project/data/quarantine/2009-2010_quarantine.csv
+[2026-10-19T08:11:21.486+0000] {subprocess.py:106} INFO - INFO: Results for 2010-2011.csv
+[2026-10-19T08:11:21.492+0000] {subprocess.py:106} INFO - INFO: Total records: 541910
+[2026-10-19T08:11:21.492+0000] {subprocess.py:106} INFO - INFO: Valid records: 541910
+[2026-10-19T08:11:21.493+0000] {subprocess.py:106} INFO - INFO: Quarantined records: 0
+[2026-10-19T08:11:21.493+0000] {subprocess.py:106} INFO - INFO: Validation pass rate: 100.00%
+[2026-10-19T08:11:21.493+0000] {subprocess.py:106} INFO - INFO: Quarantine rate: 0.00%
+[2026-10-19T08:11:21.493+0000] {subprocess.py:106} INFO - INFO: Processed data: /opt/airflow/project/data/processed/2010-2011_transformed.csv
+[2026-10-19T08:11:21.494+0000] {subprocess.py:106} INFO - INFO: Quarantine data: /opt/airflow/project/data/quarantine/2010-2011_quarantine.csv
+[2026-10-19T08:11:21.494+0000] {subprocess.py:106} INFO - INFO: =============================================
+[2026-10-19T08:11:21.494+0000] {subprocess.py:106} INFO - INFO: OVERALL PIPELINE RESULTS
+[2026-10-19T08:11:21.494+0000] {subprocess.py:106} INFO - INFO: Total records: 1067371
+[2026-10-19T08:11:21.495+0000] {subprocess.py:106} INFO - INFO: Valid records: 1067371
+[2026-10-19T08:11:21.496+0000] {subprocess.py:106} INFO - INFO: Quarantined records: 0
+[2026-10-19T08:11:21.496+0000] {subprocess.py:106} INFO - INFO: Overall validation pass rate: 100.00%
+[2026-10-19T08:11:21.497+0000] {subprocess.py:106} INFO - INFO: Overall quarantine rate: 0.00%
+[2026-10-19T08:11:21.512+0000] {subprocess.py:110} INFO - Command exited with return code 0
+[2026-10-19T08:11:21.646+0000] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2026-10-19T08:11:21.647+0000] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=retail_etl_pipeline, task_id=transform_data, run_id=manual__2026-10-19T08:10:45+00:00, execution_date=20261019T081045, start_date=20261019T081058, end_date=20261019T081121
+[2026-10-19T08:11:21.735+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2026-10-19T08:11:21.806+0000] {taskinstance.py:3901} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-10-19T08:11:21.821+0000] {local_task_job_runner.py:245} INFO - ::endgroup::

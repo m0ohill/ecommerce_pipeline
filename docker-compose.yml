@@ -1,0 +1,30 @@
+
+services:
+  airflow:
+    image: apache/airflow:2.10.5-python3.12
+    container_name: ecommerce-airflow
+    restart: unless-stopped
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/airflow.db
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: local-dev-secret-key
+      _PIP_ADDITIONAL_REQUIREMENTS: "psycopg[binary]"
+
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/project/src
+      - ./data:/opt/airflow/project/data
+      - ./sql:/opt/airflow/project/sql
+      - airflow_state:/opt/airflow
+
+    command: standalone
+
+volumes:
+  airflow_state:
