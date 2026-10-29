@@ -1,109 +1,125 @@
-# E-commerce Data Engineering ETL Pipeline
+# E-commerce Data Engineering Pipeline
 
-A Python-based data engineering project that processes more than one million online retail transaction records. The project demonstrates data ingestion, profiling, transformation, validation, quarantine handling, and incremental loading. PostgreSQL integration and workflow orchestration are planned next.
+**Python · PostgreSQL · SQL · Apache Airflow · Docker**
 
-## Project Goals
+An end-to-end data engineering portfolio project that ingests, cleans, validates, and stores **1,067,371 historical online retail transaction records**. The project combines Python-based ETL, PostgreSQL bulk loading, SQL analytics, a CSV-based incremental-loading demonstration, and Apache Airflow orchestration.
 
-- Build a practical end-to-end ETL pipeline.
-- Process raw retail transaction CSV files into a consistent format.
-- Profile data and identify quality issues before transformation.
-- Validate records and quarantine invalid data with reasons.
-- Demonstrate incremental loading without repeatedly loading records already processed.
-- Extend the pipeline with PostgreSQL and Apache Airflow.
+> **Status:** Working local-development MVP. One Airflow DAG run completed successfully with all four tasks green in **57 seconds**. Production-grade deployment, automated enforcement of all quality rules, and database-native incremental ingestion are future enhancements.
 
-## Technology Stack
+## At a glance
 
-**Implemented**
-- Python
-- CSV processing
-- Logging
-- SHA-256 record keys for incremental-load state tracking
-- Python unit tests
+| Metric | Result |
+| --- | ---: |
+| Source CSV batches | 2 |
+| Total processed and loaded records | **1,067,371** |
+| 2009–2010 batch | 525,461 |
+| 2010–2011 batch | 541,910 |
+| PostgreSQL records inserted on unchanged rerun | **0** |
+| Records with missing invoice, stock code, or date | **0** |
+| Records with incorrect calculated totals | **0** |
+| Unexpected negative prices | **0** |
+| Negative-price accounting adjustments | **5** |
+| Duplicate `(source_file, source_row)` keys | **0** |
+| Airflow tasks in successful run | **4 / 4** |
+| Recorded Airflow run duration | **57 seconds** |
 
-**Planned**
-- PostgreSQL
-- SQL-based analysis and validation
-- Apache Airflow orchestration
-- Expanded integration tests and monitoring
+## Business problem
 
-## Dataset Source
+Retail transaction data often arrives in separate batches and contains returns, cancellations, missing values, and accounting adjustments. Analysts need a repeatable way to convert those files into consistent, queryable data without losing meaningful transactions or inserting the same source rows repeatedly.
 
-The project uses two online retail transaction CSV files:
+This project demonstrates a local pipeline that prepares retail data for downstream sales analysis while retaining the distinctions between sales, returns/cancellations, and adjustments.
 
-- `2009-2010.csv`
-- `2010-2011.csv`
-
-Based on the filenames and fields, these files appear consistent with the **Online Retail II** dataset, commonly associated with the UCI Machine Learning Repository. Confirm the source you downloaded them from before attributing the dataset to a particular repository. If you obtained it from UCI, cite the [UCI Machine Learning Repository — Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii) here.
-
-| Source file | Records |
-|---|---:|
-| `2009-2010.csv` | 525,461 |
-| `2010-2011.csv` | 541,910 |
-| **Total** | **1,067,371** |
-
-The source fields include invoice, stock code, description, quantity, invoice date, price, customer ID, and country.
-
-## Business Case Study
-
-This project simulates the data engineering workflow of an **online retail business** that needs to turn raw transaction files into reliable, analysis-ready data.
-
-The pipeline is designed to help prepare transaction data for questions such as:
-
-- How do sales and transaction volumes change over time?
-- Which products generate the most sales?
-- How do customer purchasing patterns vary?
-- How should returns, cancellations, and adjustments be represented?
-- How can downstream analysts query consistent data without repeatedly processing all historical records?
-
-The current focus is on the data engineering foundation: ingestion, profiling, transformation, validation, quarantine handling, and incremental loading. Sales and customer analytics, PostgreSQL storage, and orchestration are future extensions; they should not be considered implemented until those parts are built.
-
-> Dataset note: Place the source files in the expected `data/raw/` directories before running the pipeline. Ensure you have the rights to redistribute the dataset before committing raw data to GitHub.
-
-## Pipeline Overview
+## Architecture
 
 ```text
-Raw CSV batches
-      |
-      v
-Ingestion
-      |
-      v
-Data profiling
-      |
-      v
-Transformation and validation
-      |
-      +------> Quarantine invalid records
-      |
-      v
-Processed CSV files
-      |
-      v
-Incremental loading and processed-record state
-      |
-      v
-PostgreSQL (planned)
-      |
-      v
-SQL analysis and validation (planned)
+                   Historical retail CSV batches
+                  (2009–2010 and 2010–2011)
+                               |
+                               v
+                        Python ingestion
+                        src/ingest.py
+                               |
+                               v
+                     Python transformation
+                      src/transform.py
+                        /            \
+                       v              v
+              Processed CSVs      Quarantine output
+                       |
+                       v
+               PostgreSQL bulk loader
+                 src/load_postgres.py
+                       |
+                       v
+               retail_transactions table
+                       |
+                       v
+                SQL analysis & checks
+                 sql/data_quality.sql
 
-Apache Airflow orchestration (planned)
+         Apache Airflow orchestrates four tasks:
+        ingest_csv -> transform_data -> load_postgres
+                              -> validate_data
+
+  Separate demonstration: src/incremental.py tracks processed
+       records in CSV output and a processed-key state file.
 ```
 
-## Project Structure
+**Important distinction:** The current Airflow `validate_data` task verifies the PostgreSQL row count. The more extensive checks in `sql/data_quality.sql` have been executed separately; they are **not yet configured to fail the DAG automatically**. The existing incremental loader is CSV/state-file based, not a PostgreSQL incremental writer.
+
+## Tech stack
+
+| Technology | Purpose |
+| --- | --- |
+| Python | CSV ingestion, profiling, transformation, validation, and incremental demo |
+| PostgreSQL 17 | Persistent transaction storage and analytics |
+| Psycopg 3 | Python-to-PostgreSQL connection and `COPY` loading |
+| SQL | Quality checks and exploratory analytics |
+| Apache Airflow 2.10.5 | Workflow orchestration and task monitoring |
+| Docker / Docker Compose | Local PostgreSQL and Airflow environments |
+| `unittest` | Unit tests for record transformation |
+| Git / GitHub | Version control and project presentation |
+
+## Dataset
+
+The project uses two historical retail CSV files:
+
+| Source | Rows |
+| --- | ---: |
+| `data/raw/batch_001/2009-2010.csv` | 525,461 |
+| `data/raw/batch_002/2010-2011.csv` | 541,910 |
+| **Total** | **1,067,371** |
+
+The files appear consistent with the **Online Retail II** dataset. Confirm the original download source and its usage terms before adding a formal dataset attribution or redistributing data.
+
+The processed schema contains:
 
 ```text
-ecommerce-etl-pipeline/
+invoice, stock_code, description, quantity, invoice_date,
+price, customer_id, country, total_amount, transaction_type
+```
+
+`total_amount` is calculated as `quantity * price`. The pipeline categorizes transactions as `sale`, `return_or_cancellation`, or `adjustment`.
+
+## Repository layout
+
+```text
+ecommerce_pipeline/
+├── airflow/
+│   ├── dags/
+│   │   └── retail_pipeline_dag.py
+│   ├── logs/                     # Generated locally
+│   └── plugins/
 ├── data/
 │   ├── raw/
 │   │   ├── batch_001/
 │   │   └── batch_002/
-│   ├── processed/
-│   ├── quarantine/
-│   ├── incremental/
+│   ├── processed/                # Generated CSVs
+│   ├── quarantine/               # Generated as needed
+│   ├── incremental/              # CSV-based incremental state/output
 │   └── incremental_demo/
-│       ├── source/
-│       └── output/
+├── sql/
+│   └── data_quality.sql
 ├── src/
 │   ├── ingest.py
 │   ├── profile_data.py
@@ -111,233 +127,219 @@ ecommerce-etl-pipeline/
 │   ├── validate.py
 │   ├── compare_batches.py
 │   ├── incremental.py
-│   └── prepare_incremental_demo.py
+│   ├── prepare_incremental_demo.py
+│   └── load_postgres.py
 ├── tests/
 │   └── test_transform.py
+├── docker-compose.yml
 └── README.md
 ```
 
-Some folders and files are created when the scripts run. The structure above describes the main project components; your actual repository may differ slightly.
+Some data directories and outputs are generated by the scripts. Check your checkout for the exact files present.
 
-## Implemented Features
+## Implemented features
 
-### 1. Data ingestion
+### 1. Ingestion and profiling
 
-`src/ingest.py` reads the two raw CSV batches.
+- Reads two historical transaction batches, totaling **1,067,371 rows**.
+- Profiles source data to identify missing values, unusual quantities and prices, and potentially duplicate-looking records.
+- Preserves repeated-looking transaction lines rather than assuming every match is an error.
 
-- Batch 1: 525,461 records
-- Batch 2: 541,910 records
-- Total: 1,067,371 records
+### 2. Transformation and validation
 
-### 2. Data profiling
+- Normalizes column names and parses invoice timestamps.
+- Validates required identifiers, quantity values, and numeric prices.
+- Calculates transaction totals.
+- Classifies sales, returns/cancellations, and adjustments.
+- Supports quarantining invalid records with reasons and source context.
 
-`src/profile_data.py` explores the source data before transformation.
+In the recorded run, **1,067,371 rows passed the implemented transformation rules** and **0 were quarantined**. Passing these checks does not imply the source data is error-free in every possible business sense.
 
-Profiling identified missing customer IDs and descriptions, negative quantities, a small number of negative prices associated with bad-debt adjustments, and records that look similar under a candidate duplicate key.
+### 3. PostgreSQL loading
 
-Potential duplicate-looking records are not automatically removed because repeated transaction lines may be legitimate. Negative quantities and prices are also preserved where appropriate rather than being blindly discarded.
+`src/load_postgres.py` bulk-loads transformed CSVs into `retail_transactions` using PostgreSQL `COPY` via Psycopg. The destination table stores source-file and source-row metadata, with a uniqueness constraint on `(source_file, source_row)`.
 
-### 3. Transformation and validation
+The initial load inserted:
 
-`src/transform.py` standardizes and validates the source data.
-
-Current processing includes:
-
-- Standardizing column names
-- Parsing invoice dates
-- Validating required invoice and stock-code fields
-- Checking quantity values and finite numeric prices
-- Calculating `total_amount = price * quantity`
-- Classifying records as sales, returns/cancellations, or adjustments
-- Writing invalid records to quarantine CSV files with reasons and source information
-
-Latest run:
-
-| Metric | Records |
-|---|---:|
-| Input records | 1,067,371 |
-| Valid under current rules | 1,067,371 |
-| Quarantined | 0 |
-
-All records passed the current parsing and validation rules. This does not mean every record is guaranteed to satisfy all possible business rules; more comprehensive business-level quality checks can be added later.
-
-### 4. Incremental loading
-
-`src/incremental.py` implements incremental loading using:
-
-- A destination CSV file
-- A separate processed-key state file
-- SHA-256 hashes to track records already processed
-- Logging for new, skipped, and total processed records
-
-Run the full-dataset incremental loader with:
-
-```bash
-python src/incremental.py
+```text
+2009-2010_transformed.csv: 525461 new rows
+2010-2011_transformed.csv: 541910 new rows
+Total PostgreSQL records: 1067371
 ```
 
-By default, it reads:
+A second run against **unchanged input files** inserted **0** rows, confirming rerun idempotency under those conditions. Because the key depends on source row position, it is not a robust solution for reordered or modified files.
 
-- `data/processed/2009-2010_transformed.csv`
-- `data/processed/2010-2011_transformed.csv`
+### 4. CSV-based incremental loading
 
-It writes to:
+`src/incremental.py` maintains a destination CSV and a processed-key state file. It uses SHA-256-based record tracking to skip previously seen records in controlled cumulative snapshots.
 
-- `data/incremental/retail_transactions.csv`
-- `data/incremental/processed_keys.csv`
-
-The state file allows the loader to skip records it has already processed when the same input records are encountered again.
-
-**Current limitation:** the record key uses the source row number and row values. This works for the controlled experiment when row order remains stable, but a production implementation should use a stable source identifier or another reliable record identity and should address transaction safety and source changes.
-
-### 5. Incremental-loading demonstration
-
-A small cumulative-snapshot experiment demonstrates how the loader processes newly arrived records without loading previously seen records again.
-
-Prepare the snapshots:
-
-```bash
-python src/prepare_incremental_demo.py
-```
-
-Run the demonstration:
-
-```bash
-python src/incremental.py --demo
-```
-
-The demo uses separate files under `data/incremental_demo/` and resets only its own demo output and state before each run. It does not reset the main incremental output.
-
-Successful demonstration results:
-
-| Snapshot | Records in snapshot | Newly loaded | Previously processed and skipped | Total stored |
-|---|---:|---:|---:|---:|
+| Snapshot | Rows available | New rows loaded | Rows skipped | Cumulative stored |
+| --- | ---: | ---: | ---: | ---: |
 | Day 1 | 10 | 10 | 0 | 10 |
 | Day 3 | 35 | 25 | 10 | 35 |
 | Day 7 | 150 | 115 | 35 | 150 |
 
-This verifies the expected behavior for cumulative snapshots that retain the same record order.
+**Limitation:** This is a separate CSV-based demonstration. It has not yet been integrated into PostgreSQL as a production-style incremental upsert pipeline.
 
-### 6. Unit tests
+### 5. SQL analytics and quality checks
 
-`tests/test_transform.py` contains seven tests covering:
+`sql/data_quality.sql` checks missing identifiers/dates, zero quantities, calculated totals, unexpected negative prices, invalid sale quantities, transaction categories, and duplicate source keys.
 
-- Valid record transformation
-- Invalid dates
-- Missing invoice
-- Missing stock code
-- Fractional quantity
-- Negative price preservation
-- Negative quantity preservation
+Recorded transaction-type results:
 
-All seven tests passed in the latest recorded test run.
+| Transaction type | Rows | Total amount |
+| --- | ---: | ---: |
+| `sale` | 1,044,415 | 20,961,906.08 |
+| `return_or_cancellation` | 22,950 | -1,527,041.43 |
+| `adjustment` | 6 | -147,614.08 |
 
-These tests currently exercise a standalone `transform_record(row)` function rather than the entire transformation pipeline. Broader integration tests are a future improvement.
+Five negative-price entries are labeled **“Adjust bad debt”** and classified as adjustments. They are retained rather than incorrectly rejected as invalid sales. There are six adjustment records overall.
 
-## Setup
+An example analysis query:
 
-### Requirements
+```sql
+SELECT
+    country,
+    COUNT(*) AS total_transactions,
+    ROUND(SUM(total_amount), 2) AS total_revenue
+FROM retail_transactions
+WHERE transaction_type = 'sale'
+GROUP BY country
+ORDER BY total_revenue DESC
+LIMIT 10;
+```
+
+The recorded top market was **United Kingdom**, with **961,218 sale records** and **17,860,289.29** in summed sales amount. The source currency is not asserted here.
+
+### 6. Airflow orchestration
+
+The DAG `retail_etl_pipeline` orchestrates:
+
+```text
+ingest_csv -> transform_data -> load_postgres -> validate_data
+```
+
+A manual run completed successfully in **57 seconds**, with all four tasks marked successful. The DAG currently uses a manual trigger (`schedule=None`). The final task checks that PostgreSQL can be queried and prints the row count; enforcing the full SQL rules is a planned enhancement.
+
+### 7. Unit testing
+
+Seven transformation unit tests have passed, covering valid records, invalid dates, missing invoice and stock code, fractional quantity, and preservation of negative prices/quantities when appropriate.
+
+## Running locally
+
+> These instructions describe the demonstrated local setup, not a one-command production deployment. You need the dataset files, a working Docker Desktop installation, and Python dependencies.
+
+### Prerequisites
 
 - Python 3
-- Git
-- The two source CSV files
-
-PostgreSQL and Apache Airflow are not required for the currently implemented CSV-based pipeline.
+- Docker Desktop with sufficient memory for Airflow
+- PostgreSQL container accessible to the host at `localhost:5434`
+- The two source CSV files in their expected directories
+- Python package `psycopg[binary]`
 
 ### 1. Clone the repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
-cd ecommerce-etl-pipeline
+git clone git@github.com:m0ohill/ecommerce_pipeline.git
+cd ecommerce_pipeline
+python3 -m pip install 'psycopg[binary]'
 ```
 
-Replace the placeholder URL with your repository URL.
-
-### 2. Place the source data
-
-Place the source files at these paths:
+### 2. Add the source data
 
 ```text
 data/raw/batch_001/2009-2010.csv
 data/raw/batch_002/2010-2011.csv
 ```
 
-### 3. Run ingestion, profiling, and transformation
+The large CSV files may not be included in the repository. Obtain them from the appropriate source before running the ETL.
+
+### 3. Run the Python pipeline
 
 ```bash
-python src/ingest.py
-python src/profile_data.py
-python src/transform.py
+python3 src/ingest.py
+python3 src/profile_data.py
+python3 src/transform.py
 ```
 
-Run the scripts in order. Check each script's output before proceeding.
+### 4. Run the PostgreSQL loader
 
-### 4. Run the incremental-loading demonstration
+The demonstrated development environment uses a PostgreSQL 17 container named `ecommerce-postgres`, database `retail_db`, and host port `5434`. Configure `DATABASE_URL` for your own environment rather than relying on a hard-coded development password.
 
 ```bash
-python src/prepare_incremental_demo.py
-python src/incremental.py --demo
+python3 src/load_postgres.py
 ```
 
-### 5. Run unit tests
-
-Run from the project root:
+Verify the row count:
 
 ```bash
-python -m unittest discover -s tests -v
+docker exec ecommerce-postgres psql -U retail_user -d retail_db \
+  -c 'SELECT COUNT(*) FROM retail_transactions;'
 ```
 
-## Data and Repository Hygiene
+### 5. Run the SQL checks
 
-The raw and processed data files can be large. Avoid committing the full retail dataset, generated outputs, or local state files unless you have a specific reason and permission to share them.
-
-A `.gitignore` can exclude local data while keeping empty directory placeholders or documenting expected paths. For example:
-
-```gitignore
-# Local datasets and generated outputs
-data/raw/*
-data/processed/*
-data/quarantine/*
-data/incremental/*
-data/incremental_demo/output/*
-
-# Python cache
-__pycache__/
-*.py[cod]
+```bash
+docker exec -i ecommerce-postgres \
+  psql -U retail_user -d retail_db \
+  < sql/data_quality.sql
 ```
 
-If you need to preserve empty directory structure, add small `.gitkeep` files where appropriate. Check your repository's existing `.gitignore` before replacing it.
+These are currently **diagnostic SQL queries**; reviewing their output is still necessary.
 
-## Planned Improvements
+### 6. Run the incremental demonstration
 
-- Load processed transactions into PostgreSQL.
-- Design destination tables and verify row counts using SQL.
-- Connect incremental loading to PostgreSQL.
-- Add more robust record identity and safe recovery behavior.
-- Add integration tests for the complete transformation pipeline.
-- Orchestrate pipeline stages with Apache Airflow.
-- Add concise run summaries and expanded data-quality checks.
-- Document SQL examples and add an architecture diagram.
+```bash
+python3 src/prepare_incremental_demo.py
+python3 src/incremental.py --demo
+```
 
-## Current Status
+### 7. Run unit tests
 
-| Component | Status |
-|---|---|
-| CSV ingestion | Implemented |
-| Data profiling | Implemented |
-| Transformation and basic validation | Implemented |
-| Quarantine handling | Implemented |
-| CSV-based incremental loading | Implemented |
-| Cumulative-snapshot incremental demo | Tested successfully |
-| Initial unit tests | 7 passing |
-| PostgreSQL integration | Planned |
-| Airflow orchestration | Planned |
-| Final documentation and portfolio polish | In progress |
+```bash
+python3 -m unittest discover -s tests -v
+```
 
-## Next Milestone
+### 8. Start Airflow
 
-The next major milestone is PostgreSQL integration: create the database and target table, load the processed transactions, verify row counts and sample records, and then connect the incremental-loading process to the database.
+```bash
+docker compose up -d
+```
+
+Open the local Airflow UI at `http://localhost:8080`, sign in, and trigger `retail_etl_pipeline`. In the demonstrated setup, Airflow connects to PostgreSQL over the shared Docker network using hostname `ecommerce-postgres` and port `5432` (not the Mac host's port `5434`).
+
+**Networking note:** The existing PostgreSQL container was manually attached to the Compose network during setup. If containers are recreated, that connection may need to be restored or replaced with a persistent Compose network configuration.
+
+**Development-only note:** The current Airflow setup uses SQLite metadata and `SequentialExecutor`. It is suitable for local experimentation, not production. Keep database credentials out of committed source files when preparing a public repository.
+
+## Key engineering decisions and trade-offs
+
+- **Preserve financial meaning:** Negative quantities and negative prices are not always errors; returns and bad-debt adjustments are classified separately from sales.
+- **Use bulk loading:** PostgreSQL `COPY` handles the historical dataset efficiently.
+- **Prevent simple rerun duplicates:** A source-file/row-position constraint prevents reinserting unchanged batches.
+- **Separate experiments:** The CSV incremental demo proves state tracking without claiming database-native incremental ingestion.
+- **Make limitations explicit:** The current DAG validates row count; the standalone SQL checks do not yet automatically block a bad load.
+
+## Roadmap
+
+- [x] Ingest and profile two historical CSV batches
+- [x] Transform and validate transaction records
+- [x] Implement quarantine handling
+- [x] Demonstrate CSV-based incremental loading
+- [x] Load historical records into PostgreSQL
+- [x] Verify duplicate-safe reruns for unchanged CSV files
+- [x] Run SQL analytics and data-quality checks
+- [x] Orchestrate a successful four-task Airflow DAG
+- [ ] Fail the Airflow DAG automatically on data-quality violations
+- [ ] Add stable record identity and database-native incremental upserts
+- [ ] Persist Docker networking and externalize credentials
+- [ ] Add full pipeline integration tests and monitoring
+- [ ] Add architecture and Airflow run screenshots to the repository
+
+## Results and learning
+
+This project demonstrates practical experience with **batch ETL design, data profiling, business-rule-aware validation, relational storage, SQL analytics, idempotent reruns, basic incremental state tracking, Docker networking, and Airflow orchestration**. It also illustrates why a working local pipeline is not the same as a production-ready data platform: stable source identities, automated quality gates, credential management, and recovery semantics still matter.
 
 ---
 
-This project is being developed iteratively as a practical data engineering portfolio project. Features marked as planned are not yet implemented.
+*Portfolio project for learning and demonstrating data engineering workflows.*
